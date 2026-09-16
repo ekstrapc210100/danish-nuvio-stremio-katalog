@@ -1,58 +1,140 @@
-# Danish Nuvio/Stremio Katalog
+# Danish Nuvio / Stremio Catalog
 
-Dette er et **katalog-addon**, ikke et stream-addon. Det laver separate rækker/kataloger i Stremio/Nuvio baseret på TMDB.
+A catalog and metadata addon for [Nuvio](https://nuvioapp.space/) and
+Stremio, focused on Danish movies and TV series.
 
-## Kataloger
+> **This is a catalog addon, not a stream addon.** It provides catalog
+> entries and metadata. It does not provide video streams.
 
-- 🇩🇰 Danske film
-- 🇩🇰 Danske serier
-- 🎬 Danske klassikere
-- 😂 Danske komedier
-- 🔪 Danske krimier
-- 📅 Danske film 2020–2026
-- 📅 Danske film 2000–2019
-- 📼 Danske film før 2000
+## Features
 
-Filtreringen bruger TMDB's `with_origin_country=DK`, så "Danmark" betyder produktions-/oprindelsesland og ikke bare dansk release-region.
+-   Danish movies and TV series
+-   TMDB-powered metadata
+-   Separate catalogs for genres, popularity, ratings and release
+    periods
+-   Search support
+-   Detailed metadata including posters, backdrops, cast, directors and
+    trailers
+-   Configurable catalog selection
+-   In-memory caching to reduce repeated TMDB requests
+-   Designed for deployment on services such as Render
 
-## Du skal bruge
+## Available catalogs
 
-- Node.js 20+
-- En TMDB API Key
+  Catalog                     Description
+  --------------------------- ------------------------------------------
+  Danish Movies               Danish movies
+  Danish Series               Danish TV series
+  Danish New Releases         Recent Danish movies
+  Danish Popular              Popular Danish titles
+  Danish Top Rated            Highly rated Danish titles
+  Danish Classics             Danish classic movies
+  Danish Comedies             Danish comedy movies
+  Danish Crime                Danish crime movies
+  Danish Drama                Danish drama movies
+  Danish Movies 2020--2026    Danish movies released from 2020 to 2026
+  Danish Movies 2000--2019    Danish movies released from 2000 to 2019
+  Danish Movies before 2000   Danish movies released before 2000
 
-**Send ikke din API-nøgle til andre.** Læg den som en miljøvariabel på den server, hvor addon'et hostes:
+The addon uses TMDB country and language filters to identify Danish
+content.
 
-`TMDB_API_KEY=DIN_TMDB_API_KEY`
+## Requirements
 
-## Kør lokalt
+-   Node.js 20 or newer
+-   A TMDB API key
+-   A server with a publicly accessible HTTPS URL for normal
+    Nuvio/Stremio use
 
-```bash
-npm install
-TMDB_API_KEY=DIN_NØGLE npm start
+## Configuration
+
+The addon requires the following environment variable:
+
+``` text
+TMDB_API_KEY=YOUR_TMDB_API_KEY
 ```
 
-Addon'et kører derefter på:
+Optionally, set the public URL of the deployed addon:
 
-`http://localhost:7000/manifest.json`
+``` text
+PUBLIC_BASE_URL=https://your-domain.example
+```
 
-Nuvio/Stremio skal normalt bruge en offentligt tilgængelig HTTPS-adresse, hvis addon'et skal bruges fra telefon/TV.
+Keep your TMDB API key private. Do not commit it to GitHub or share it
+publicly.
 
-## Hosting
+## Run locally
 
-Du kan fx hoste projektet på Render, Railway, Fly.io, en VPS eller en anden Node-kompatibel host.
+Clone the repository and install the dependencies:
 
-Sæt:
+``` bash
+npm install
+```
 
-- Build command: `npm install`
-- Start command: `npm start`
-- Environment variable: `TMDB_API_KEY`
+Start the server:
 
-Når serveren er online, er manifestet:
+``` bash
+TMDB_API_KEY=YOUR_TMDB_API_KEY npm start
+```
 
-`https://DIN-DOMÆNE/manifest.json`
+The addon will be available at:
 
-Kopiér manifest-adressen ind i Nuvio.
+``` text
+http://localhost:7000/manifest.json
+```
 
-## Vigtigt
+## Deployment
 
-Dette addon leverer **katalogdata og metadata-preview**. Det leverer ikke selve videostreams. Et separat stream-addon skal stadig levere en stream, hvis du vil afspille titlerne.
+The project can be deployed to Render or another Node.js-compatible
+hosting provider.
+
+Typical settings:
+
+-   **Build command:** `npm install`
+-   **Start command:** `npm start`
+-   **Environment variable:** `TMDB_API_KEY`
+-   **Optional environment variable:** `PUBLIC_BASE_URL`
+
+After deployment, the manifest will normally be available at:
+
+``` text
+https://YOUR-DOMAIN/manifest.json
+```
+
+Use the manifest URL when installing the addon in Nuvio or Stremio.
+
+## Architecture
+
+The addon is built with:
+
+-   **Node.js**
+-   **Express**
+-   **stremio-addon-sdk**
+-   **TMDB API**
+
+Catalog responses and metadata are cached in memory to reduce
+unnecessary API requests.
+
+## TMDB
+
+This project uses data from TMDB.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+## Important notes
+
+This addon provides catalog and metadata information only. It does
+**not** provide movie or TV streams.
+
+A separate stream provider or stream addon is required for playback.
+
+## License
+
+No open-source license has currently been declared for this project.
+Unless a license is added to the repository, the project should be
+treated as **all rights reserved**.
+
+## Disclaimer
+
+This project is an independent community project and is not affiliated
+with or endorsed by Nuvio, Stremio or TMDB.
