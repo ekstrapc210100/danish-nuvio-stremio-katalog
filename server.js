@@ -34,9 +34,9 @@ const catalogs = [
 
 const manifest = {
   id: "dk.danish.nuvio.stremio.katalog",
-  version: "2.0.0",
+  version: "2.0.1",
   name: "Dansk Film – Nuvio",
-  description: "Danske film og serier med dynamiske kataloger, søgning, metadata og automatisk opdaterede TMDB-resultater.",
+  description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, metadata og automatisk opdaterede TMDB-resultater.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
   resources: ["catalog", "meta"],
   types: ["movie", "series"],
@@ -94,7 +94,9 @@ function toMeta(item, type, detailed = false) {
     releaseInfo: date ? date.slice(0, 4) : undefined,
     poster: posterPath ? `${IMAGE_BASE}${posterPath}` : undefined,
     posterShape: "poster",
-    background: backdropPath ? `${BACKDROP_BASE}${backdropPath}` : undefined,
+    background: backdropPath
+      ? `${BACKDROP_BASE}${backdropPath}`
+      : (posterPath ? `${IMAGE_BASE}${posterPath}` : undefined),
     description: clean(item.overview),
     imdb_id: clean(item.external_ids?.imdb_id),
     genres: Array.isArray(item.genres)
@@ -186,6 +188,7 @@ builder.defineCatalogHandler(async args => {
 
   const metas = (data.results || [])
     .filter(item => item.original_language === "da")
+    .filter(item => item.poster_path)
     .map(item => toMeta(item, cfg.type));
 
   cache.set(key, { time: Date.now(), metas });
