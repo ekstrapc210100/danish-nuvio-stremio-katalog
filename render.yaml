@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: danske-stremio-katalog
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: TMDB_API_KEY
+        sync: false
