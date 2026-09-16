@@ -38,7 +38,7 @@ const manifest = {
   name: "Dansk Film – Nuvio",
   description: "Danske film og serier med dynamiske kataloger, søgning, metadata og automatisk opdaterede TMDB-resultater.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
-  resources: ["catalog"],
+  resources: ["catalog", "meta"],
   types: ["movie", "series"],
   catalogs: catalogs.map(c => ({
     type: c.type,
