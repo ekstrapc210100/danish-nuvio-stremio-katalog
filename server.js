@@ -1,4 +1,5 @@
-const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
+const { addonBuilder, getRouter } = require("stremio-addon-sdk");
+const express = require("express");
 
 const PORT = process.env.PORT || 7000;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -42,9 +43,9 @@ const catalogs = [
 
 const manifest = {
   id: "dk.danish.nuvio.stremio.katalog",
-  version: "2.1.0",
+  version: "2.2.0",
   name: "Dansk Film – Nuvio",
-  description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, kvalitetsfiltre, metadata og automatisk opdaterede TMDB-resultater.",
+  description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, kvalitetsfiltre, metadata, konfigurerbare kataloger og automatisk opdaterede TMDB-resultater.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
   resources: ["catalog", "meta"],
   types: ["movie", "series"],
@@ -224,9 +225,158 @@ builder.defineMetaHandler(async args => {
   }
 });
 
-serveHTTP(builder.getInterface(), {
-  port: PORT,
-  cacheMaxAge: 900,
-  staleRevalidate: 3600,
-  staleIfError: 86400
+const addonInterface = builder.getInterface();
+const router = getRouter(addonInterface);
+const app = express();
+
+app.disable("x-powered-by");
+app.use(express.json());
+
+const BASE_URL = process.env.PUBLIC_BASE_URL || "";
+const DEFAULT_CATALOG_IDS = catalogs.map(c => c.id);
+
+function publicBase(req) {
+  return (BASE_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+}
+
+function selectedCatalogs(value) {
+  if (!value) return catalogs;
+  const ids = String(value).split(",").filter(Boolean);
+  const allowed = new Set(catalogs.map(c => c.id));
+  const unique = [...new Set(ids)].filter(id => allowed.has(id));
+  return unique.length ? catalogs.filter(c => unique.includes(c.id)) : catalogs;
+}
+
+function manifestFor(req, catalogList) {
+  return {
+    ...manifest,
+    version: "2.2.0",
+    catalogs: catalogList.map(c => ({
+      type: c.type,
+      id: c.id,
+      name: c.name,
+      extra: [
+        { name: "skip", isRequired: false },
+        { name: "search", isRequired: false }
+      ]
+    }))
+  };
+}
+
+function encodeConfig(ids) {
+  return Buffer.from(ids.join(","), "utf8").toString("base64url");
+}
+
+function decodeConfig(value) {
+  try {
+    return Buffer.from(String(value), "base64url").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+const landingPage = (req) => {
+  const base = publicBase(req);
+  const standardUrl = `${base}/manifest.json`;
+  const catalogJson = JSON.stringify(catalogs.map(c => ({
+    id: c.id, type: c.type, name: c.name
+  }))).replace(/</g, "\\u003c");
+
+  return `<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dansk Film – Nuvio</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d10;--card:#14181d;--border:#293039;--text:#f4f5f6;--muted:#aab2bb;--accent:#e11d2e}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#0b0d10,#101318);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+main{max-width:760px;margin:auto;padding:42px 20px 70px}.hero{text-align:center;padding:28px 0 30px}
+.logo{font-size:48px;margin-bottom:8px}.hero h1{font-size:34px;margin:0 0 8px}.hero p{color:var(--muted);font-size:17px;margin:0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;margin-top:18px}
+h2{font-size:20px;margin:0 0 6px}.sub{color:var(--muted);margin:0 0 18px}
+.primary{display:block;width:100%;border:0;border-radius:12px;padding:15px 18px;background:var(--accent);color:white;font-weight:700;font-size:17px;cursor:pointer}
+.secondary{border:1px solid var(--border);background:#1a1f25;color:var(--text);border-radius:10px;padding:12px 14px;font-weight:600;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}.item{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:11px;padding:11px;background:#11151a}
+.item input{width:18px;height:18px;accent-color:var(--accent)}.item span{font-size:14px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.url{font-size:12px;color:var(--muted);word-break:break-all;margin-top:13px;padding:10px;background:#0d1014;border-radius:9px}
+.note{font-size:13px;color:var(--muted);line-height:1.5;margin-top:16px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.hero h1{font-size:28px}}
+</style>
+</head>
+<body><main>
+<section class="hero"><div class="logo">🇩🇰</div><h1>Dansk Film – Nuvio</h1><p>Danske film og serier samlet ét sted.</p></section>
+
+<section class="card">
+<h2>🚀 Hurtig installation</h2>
+<p class="sub">Vil du bare i gang? Brug vores anbefalede komplette pakke.</p>
+<button class="primary" id="copyStandard">Kopiér standardlink</button>
+<div class="url" id="standardUrl"></div>
+<p class="note">Kopiér linket og indsæt det i Nuvio under installation af addon.</p>
+</section>
+
+<section class="card">
+<h2>⚙️ Tilpas selv</h2>
+<p class="sub">Vælg præcis de kataloger, du vil have i Nuvio.</p>
+<div class="actions"><button class="secondary" id="all">Vælg alle</button><button class="secondary" id="none">Fravælg alle</button></div>
+<div class="grid" id="catalogs"></div>
+<div class="actions"><button class="primary" id="copyCustom" style="flex:1">Kopiér mit link</button></div>
+<div class="url" id="customUrl"></div>
+</section>
+
+<section class="card">
+<h2>Sådan installerer du</h2>
+<p class="note">1. Tryk på <b>Kopiér</b> ovenfor.<br>2. Åbn Nuvio.<br>3. Gå til addons og vælg installation via manifest/link.<br>4. Indsæt linket.</p>
+</section>
+</main>
+<script>
+const catalogs=${catalogJson};
+const base=${JSON.stringify(base)};
+const standard=${JSON.stringify(standardUrl)};
+const list=document.getElementById("catalogs");
+const custom=document.getElementById("customUrl");
+const boxes=[];
+function render(){
+  list.innerHTML="";
+  catalogs.forEach(c=>{
+    const label=document.createElement("label");label.className="item";
+    const input=document.createElement("input");input.type="checkbox";input.checked=true;input.dataset.id=c.id;
+    input.addEventListener("change",update);
+    const span=document.createElement("span");span.textContent=c.name;
+    label.append(input,span);list.append(label);boxes.push(input);
+  });
+  update();
+}
+function urlFor(){
+  const ids=boxes.filter(x=>x.checked).map(x=>x.dataset.id);
+  const encoded=btoa(unescape(encodeURIComponent(ids.join(",")))).replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");
+  return base+"/c/"+encoded+"/manifest.json";
+}
+function update(){custom.textContent=urlFor()}
+async function copy(url,button){
+  try{await navigator.clipboard.writeText(url);button.textContent="Kopieret ✓";setTimeout(()=>button.textContent=button.id==="copyStandard"?"Kopiér standardlink":"Kopiér mit link",1400)}
+  catch{prompt("Kopiér dette link:",url)}
+}
+document.getElementById("copyStandard").addEventListener("click",()=>copy(standard,document.getElementById("copyStandard")));
+document.getElementById("copyCustom").addEventListener("click",()=>copy(urlFor(),document.getElementById("copyCustom")));
+document.getElementById("all").addEventListener("click",()=>{boxes.forEach(x=>x.checked=true);update()});
+document.getElementById("none").addEventListener("click",()=>{boxes.forEach(x=>x.checked=false);update()});
+render();
+</script></body></html>`;
+};
+
+app.get("/", (req,res) => res.type("html").send(landingPage(req)));
+
+app.get("/manifest.json", (req,res) => {
+  res.json(manifestFor(req, catalogs));
+});
+
+app.get("/c/:config/manifest.json", (req,res) => {
+  const ids = decodeConfig(req.params.config);
+  res.json(manifestFor(req, selectedCatalogs(ids)));
+});
+
+app.use(router);
+
+app.listen(PORT, () => {
+  console.log(`Dansk Film – Nuvio running on port ${PORT}`);
 });

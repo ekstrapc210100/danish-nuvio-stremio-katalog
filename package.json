@@ -1,16 +1,12 @@
 {
   "name": "danish-nuvio-stremio-katalog",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Danish Nuvio/Stremio catalog addon",
+  "version": "2.2.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": ">=20"
-  },
   "dependencies": {
-    "stremio-addon-sdk": "^1.6.0"
+    "stremio-addon-sdk": "latest",
+    "express": "^5.1.0"
   }
 }
