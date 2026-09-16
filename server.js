@@ -43,7 +43,7 @@ const catalogs = [
 
 const manifest = {
   id: "dk.danish.nuvio.stremio.katalog",
-  version: "2.2.0",
+  version: "2.2.1",
   name: "Dansk Film – Nuvio",
   description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, kvalitetsfiltre, metadata, konfigurerbare kataloger og automatisk opdaterede TMDB-resultater.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
@@ -250,7 +250,7 @@ function selectedCatalogs(value) {
 function manifestFor(req, catalogList) {
   return {
     ...manifest,
-    version: "2.2.0",
+    version: "2.2.1",
     catalogs: catalogList.map(c => ({
       type: c.type,
       id: c.id,
@@ -286,82 +286,274 @@ const landingPage = (req) => {
 <html lang="da">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17">
 <title>Dansk Film – Nuvio</title>
 <style>
-:root{color-scheme:dark;--bg:#0b0d10;--card:#14181d;--border:#293039;--text:#f4f5f6;--muted:#aab2bb;--accent:#e11d2e}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#0b0d10,#101318);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
-main{max-width:760px;margin:auto;padding:42px 20px 70px}.hero{text-align:center;padding:28px 0 30px}
-.logo{font-size:48px;margin-bottom:8px}.hero h1{font-size:34px;margin:0 0 8px}.hero p{color:var(--muted);font-size:17px;margin:0}
-.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;margin-top:18px}
-h2{font-size:20px;margin:0 0 6px}.sub{color:var(--muted);margin:0 0 18px}
-.primary{display:block;width:100%;border:0;border-radius:12px;padding:15px 18px;background:var(--accent);color:white;font-weight:700;font-size:17px;cursor:pointer}
-.secondary{border:1px solid var(--border);background:#1a1f25;color:var(--text);border-radius:10px;padding:12px 14px;font-weight:600;cursor:pointer}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}.item{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:11px;padding:11px;background:#11151a}
-.item input{width:18px;height:18px;accent-color:var(--accent)}.item span{font-size:14px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.url{font-size:12px;color:var(--muted);word-break:break-all;margin-top:13px;padding:10px;background:#0d1014;border-radius:9px}
-.note{font-size:13px;color:var(--muted);line-height:1.5;margin-top:16px}
-@media(max-width:560px){.grid{grid-template-columns:1fr}.hero h1{font-size:28px}}
+:root{
+  color-scheme:dark;
+  --bg:#0b0f17;
+  --card:#141a24;
+  --card2:#101620;
+  --border:#293445;
+  --text:#f5f7fb;
+  --muted:#9ca8ba;
+  --accent:#e21d35;
+  --accent2:#ff334b;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 50% -10%,rgba(226,29,53,.13),transparent 38%),
+    linear-gradient(180deg,#0b0f17 0%,#0e131c 100%);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+main{max-width:760px;margin:auto;padding:34px 18px 72px}
+.hero{text-align:center;padding:18px 0 24px}
+.logo{
+  width:72px;height:72px;margin:0 auto 14px;
+  display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  background:linear-gradient(145deg,#192131,#101620);
+  box-shadow:0 18px 45px rgba(0,0,0,.28);
+  font-size:38px;
+}
+.hero h1{font-size:31px;line-height:1.1;margin:0 0 9px;letter-spacing:-.6px}
+.hero p{color:var(--muted);font-size:16px;margin:0}
+.card{
+  background:rgba(20,26,36,.92);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:22px;
+  margin-top:16px;
+  box-shadow:0 12px 35px rgba(0,0,0,.18);
+}
+h2{font-size:20px;line-height:1.2;margin:0 0 7px}
+.sub{color:var(--muted);margin:0 0 18px;line-height:1.45}
+.primary{
+  display:block;width:100%;
+  border:0;border-radius:13px;
+  padding:15px 18px;
+  background:linear-gradient(180deg,var(--accent2),var(--accent));
+  color:white;font-weight:750;font-size:16px;
+  cursor:pointer;box-shadow:0 8px 20px rgba(226,29,53,.18);
+}
+.secondary{
+  border:1px solid var(--border);
+  background:#1a2230;color:var(--text);
+  border-radius:12px;padding:11px 14px;
+  font-weight:650;cursor:pointer;
+}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}
+.item{
+  display:flex;gap:10px;align-items:center;
+  border:1px solid var(--border);border-radius:12px;
+  padding:11px;background:#111722;
+  min-height:47px;
+}
+.item input{width:19px;height:19px;accent-color:var(--accent);flex:0 0 auto}
+.item span{font-size:14px;line-height:1.25}
+.url-wrap{margin-top:14px}
+.url-label{
+  display:flex;align-items:center;justify-content:space-between;
+  color:#aeb8c8;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.7px;margin:0 2px 7px;
+}
+.url{
+  display:flex;align-items:center;gap:10px;
+  width:100%;min-height:54px;
+  padding:9px 12px;
+  background:linear-gradient(180deg,#222b3a,#1a2230);
+  border:1px solid #364357;
+  border-radius:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 7px 20px rgba(0,0,0,.16);
+}
+.url-icon{
+  width:32px;height:32px;flex:0 0 32px;
+  display:grid;place-items:center;
+  border-radius:10px;background:#101722;
+  color:#c9d2df;font-size:15px;
+}
+.url-text{
+  min-width:0;
+  color:#f2f5f9;
+  font-size:13px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+  user-select:text;
+  -webkit-user-select:text;
+}
+.copy-mini{
+  margin-left:auto;flex:0 0 auto;
+  border:1px solid #3b485c;
+  background:#101722;color:#e8edf4;
+  border-radius:10px;padding:8px 10px;
+  font-size:12px;font-weight:700;cursor:pointer;
+}
+.copy-mini:active,.secondary:active,.primary:active{transform:scale(.985)}
+.note{font-size:13px;color:var(--muted);line-height:1.55;margin-top:14px}
+.status{min-height:18px;color:#8fe0a7;font-size:13px;font-weight:650;margin:9px 2px 0}
+.footer{text-align:center;color:#6f7a8b;font-size:12px;margin-top:22px}
+@media(max-width:560px){
+  main{padding:24px 14px 60px}
+  .grid{grid-template-columns:1fr}
+  .hero h1{font-size:28px}
+  .card{padding:18px}
+  .url{border-radius:17px}
+  .url-text{font-size:12.5px}
+}
 </style>
 </head>
 <body><main>
-<section class="hero"><div class="logo">🇩🇰</div><h1>Dansk Film – Nuvio</h1><p>Danske film og serier samlet ét sted.</p></section>
-
-<section class="card">
-<h2>🚀 Hurtig installation</h2>
-<p class="sub">Vil du bare i gang? Brug vores anbefalede komplette pakke.</p>
-<button class="primary" id="copyStandard">Kopiér standardlink</button>
-<div class="url" id="standardUrl"></div>
-<p class="note">Kopiér linket og indsæt det i Nuvio under installation af addon.</p>
+<section class="hero">
+  <div class="logo">🇩🇰</div>
+  <h1>Dansk Film – Nuvio</h1>
+  <p>Danske film og serier samlet ét sted.</p>
 </section>
 
 <section class="card">
-<h2>⚙️ Tilpas selv</h2>
-<p class="sub">Vælg præcis de kataloger, du vil have i Nuvio.</p>
-<div class="actions"><button class="secondary" id="all">Vælg alle</button><button class="secondary" id="none">Fravælg alle</button></div>
-<div class="grid" id="catalogs"></div>
-<div class="actions"><button class="primary" id="copyCustom" style="flex:1">Kopiér mit link</button></div>
-<div class="url" id="customUrl"></div>
+  <h2>🚀 Hurtig installation</h2>
+  <p class="sub">Brug den komplette pakke med alle kataloger.</p>
+  <button class="primary" id="copyStandard">Kopiér installationslink</button>
+
+  <div class="url-wrap">
+    <div class="url-label"><span>Installationslink</span><span>Manifest</span></div>
+    <div class="url">
+      <div class="url-icon">↗</div>
+      <div class="url-text" id="standardUrl"></div>
+      <button class="copy-mini" id="copyStandardMini">Kopiér</button>
+    </div>
+    <div class="status" id="standardStatus"></div>
+  </div>
+
+  <p class="note">Kopiér linket og indsæt det i Nuvio under installation af addon.</p>
 </section>
 
 <section class="card">
-<h2>Sådan installerer du</h2>
-<p class="note">1. Tryk på <b>Kopiér</b> ovenfor.<br>2. Åbn Nuvio.<br>3. Gå til addons og vælg installation via manifest/link.<br>4. Indsæt linket.</p>
+  <h2>⚙️ Tilpas selv</h2>
+  <p class="sub">Vælg præcis de kataloger, du vil have i Nuvio.</p>
+
+  <div class="actions">
+    <button class="secondary" id="all">Vælg alle</button>
+    <button class="secondary" id="none">Fravælg alle</button>
+  </div>
+
+  <div class="grid" id="catalogs"></div>
+
+  <div class="url-wrap">
+    <div class="url-label"><span>Dit installationslink</span><span>Dynamisk</span></div>
+    <div class="url">
+      <div class="url-icon">↗</div>
+      <div class="url-text" id="customUrl"></div>
+      <button class="copy-mini" id="copyCustomMini">Kopiér</button>
+    </div>
+    <div class="status" id="customStatus"></div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="copyCustom" style="flex:1">Kopiér mit installationslink</button>
+  </div>
 </section>
+
+<section class="card">
+  <h2>Sådan installerer du</h2>
+  <p class="note">
+    <b>1.</b> Vælg standardlinket eller tilpas katalogerne.<br>
+    <b>2.</b> Tryk på <b>Kopiér installationslink</b>.<br>
+    <b>3.</b> Åbn Nuvio og gå til addons/installation.<br>
+    <b>4.</b> Indsæt manifest-linket og installér.
+  </p>
+</section>
+
+<div class="footer">Dansk Film – Nuvio · Automatisk opdaterede kataloger</div>
 </main>
+
 <script>
 const catalogs=${catalogJson};
 const base=${JSON.stringify(base)};
 const standard=${JSON.stringify(standardUrl)};
 const list=document.getElementById("catalogs");
 const custom=document.getElementById("customUrl");
+const standardBox=document.getElementById("standardUrl");
 const boxes=[];
+
 function render(){
   list.innerHTML="";
+  boxes.length=0;
   catalogs.forEach(c=>{
-    const label=document.createElement("label");label.className="item";
-    const input=document.createElement("input");input.type="checkbox";input.checked=true;input.dataset.id=c.id;
+    const label=document.createElement("label");
+    label.className="item";
+
+    const input=document.createElement("input");
+    input.type="checkbox";
+    input.checked=true;
+    input.dataset.id=c.id;
     input.addEventListener("change",update);
-    const span=document.createElement("span");span.textContent=c.name;
-    label.append(input,span);list.append(label);boxes.push(input);
+
+    const span=document.createElement("span");
+    span.textContent=c.name;
+
+    label.append(input,span);
+    list.append(label);
+    boxes.push(input);
   });
+  standardBox.textContent=standard;
   update();
 }
+
 function urlFor(){
   const ids=boxes.filter(x=>x.checked).map(x=>x.dataset.id);
-  const encoded=btoa(unescape(encodeURIComponent(ids.join(",")))).replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");
+  const encoded=btoa(unescape(encodeURIComponent(ids.join(","))))
+    .replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");
   return base+"/c/"+encoded+"/manifest.json";
 }
-function update(){custom.textContent=urlFor()}
-async function copy(url,button){
-  try{await navigator.clipboard.writeText(url);button.textContent="Kopieret ✓";setTimeout(()=>button.textContent=button.id==="copyStandard"?"Kopiér standardlink":"Kopiér mit link",1400)}
-  catch{prompt("Kopiér dette link:",url)}
+
+function update(){
+  custom.textContent=urlFor();
 }
-document.getElementById("copyStandard").addEventListener("click",()=>copy(standard,document.getElementById("copyStandard")));
-document.getElementById("copyCustom").addEventListener("click",()=>copy(urlFor(),document.getElementById("copyCustom")));
-document.getElementById("all").addEventListener("click",()=>{boxes.forEach(x=>x.checked=true);update()});
-document.getElementById("none").addEventListener("click",()=>{boxes.forEach(x=>x.checked=false);update()});
+
+async function copyText(url,button,status){
+  const old=button.textContent;
+  try{
+    await navigator.clipboard.writeText(url);
+    button.textContent="Kopieret ✓";
+    status.textContent="✓ Link kopieret til udklipsholderen";
+    setTimeout(()=>{
+      button.textContent=old;
+      status.textContent="";
+    },1600);
+  }catch{
+    prompt("Kopiér dette link:",url);
+  }
+}
+
+document.getElementById("copyStandard").addEventListener("click",()=>{
+  copyText(standard,document.getElementById("copyStandard"),document.getElementById("standardStatus"));
+});
+document.getElementById("copyStandardMini").addEventListener("click",()=>{
+  copyText(standard,document.getElementById("copyStandardMini"),document.getElementById("standardStatus"));
+});
+document.getElementById("copyCustom").addEventListener("click",()=>{
+  copyText(urlFor(),document.getElementById("copyCustom"),document.getElementById("customStatus"));
+});
+document.getElementById("copyCustomMini").addEventListener("click",()=>{
+  copyText(urlFor(),document.getElementById("copyCustomMini"),document.getElementById("customStatus"));
+});
+document.getElementById("all").addEventListener("click",()=>{
+  boxes.forEach(x=>x.checked=true); update();
+});
+document.getElementById("none").addEventListener("click",()=>{
+  boxes.forEach(x=>x.checked=false); update();
+});
 render();
-</script></body></html>`;
+</script>
+</body></html>`;
 };
 
 app.get("/", (req,res) => res.type("html").send(landingPage(req)));
