@@ -18,25 +18,33 @@ const DANISH_FILTER = {
 };
 
 const catalogs = [
-  { type: "movie", id: "danske_film", name: "🇩🇰 Danske film", params: { ...DANISH_FILTER, sort_by: "popularity.desc" } },
-  { type: "series", id: "danske_serier", name: "🇩🇰 Danske serier", params: { ...DANISH_FILTER, sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_nye", name: "🔥 Nye danske film", params: { ...DANISH_FILTER, "primary_release_date.gte": "2020-01-01", sort_by: "primary_release_date.desc" } },
-  { type: "movie", id: "danske_populaere", name: "⭐ Populære danske film", params: { ...DANISH_FILTER, sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_bedst_bedomte", name: "🏆 Bedst bedømte danske film", params: { ...DANISH_FILTER, "vote_count.gte": "50", sort_by: "vote_average.desc" } },
-  { type: "movie", id: "danske_klassikere", name: "🎬 Danske klassikere", params: { ...DANISH_FILTER, "primary_release_date.lte": "1999-12-31", sort_by: "vote_average.desc" } },
-  { type: "movie", id: "danske_komedier", name: "😂 Danske komedier", params: { ...DANISH_FILTER, with_genres: "35", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_krimier", name: "🔪 Danske krimier", params: { ...DANISH_FILTER, with_genres: "80", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_dramaer", name: "🎭 Danske dramaer", params: { ...DANISH_FILTER, with_genres: "18", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_film_2020_2026", name: "📅 Danske film 2020–2026", params: { ...DANISH_FILTER, "primary_release_date.gte": "2020-01-01", "primary_release_date.lte": "2026-12-31", sort_by: "primary_release_date.desc" } },
-  { type: "movie", id: "danske_film_2000_2019", name: "📅 Danske film 2000–2019", params: { ...DANISH_FILTER, "primary_release_date.gte": "2000-01-01", "primary_release_date.lte": "2019-12-31", sort_by: "primary_release_date.desc" } },
-  { type: "movie", id: "danske_film_foer_2000", name: "📼 Danske film før 2000", params: { ...DANISH_FILTER, "primary_release_date.lte": "1999-12-31", sort_by: "primary_release_date.desc" } }
+  // Hovedkatalog: bredt, men undgår helt ukendte TMDB-poster med næsten ingen stemmer.
+  { type: "movie", id: "danske_film", name: "🇩🇰 Danske film", params: { ...DANISH_FILTER, "vote_count.gte": "10", sort_by: "popularity.desc" } },
+  { type: "series", id: "danske_serier", name: "🇩🇰 Danske serier", params: { ...DANISH_FILTER, "vote_count.gte": "10", sort_by: "popularity.desc" } },
+
+  // Nye film: ingen fremtidige 2027+ titler i en kategori, der hedder 2020–nu.
+  { type: "movie", id: "danske_nye", name: "🔥 Nye danske film", params: { ...DANISH_FILTER, "primary_release_date.gte": "2020-01-01", "primary_release_date.lte": "2026-09-16", "vote_count.gte": "5", sort_by: "popularity.desc" } },
+
+  { type: "movie", id: "danske_populaere", name: "⭐ Populære danske film", params: { ...DANISH_FILTER, "vote_count.gte": "25", sort_by: "popularity.desc" } },
+  { type: "movie", id: "danske_bedst_bedomte", name: "🏆 Bedst bedømte danske film", params: { ...DANISH_FILTER, "vote_count.gte": "100", sort_by: "vote_average.desc" } },
+
+  // Klassikere: stadig åbne nok til at finde ældre danske film, men med et minimum af TMDB-data.
+  { type: "movie", id: "danske_klassikere", name: "🎬 Danske klassikere", params: { ...DANISH_FILTER, "primary_release_date.lte": "1999-12-31", "vote_count.gte": "20", sort_by: "popularity.desc" } },
+
+  { type: "movie", id: "danske_komedier", name: "😂 Danske komedier", params: { ...DANISH_FILTER, with_genres: "35", "vote_count.gte": "20", sort_by: "popularity.desc" } },
+  { type: "movie", id: "danske_krimier", name: "🔪 Danske krimier", params: { ...DANISH_FILTER, with_genres: "80", "vote_count.gte": "20", sort_by: "popularity.desc" } },
+  { type: "movie", id: "danske_dramaer", name: "🎭 Danske dramaer", params: { ...DANISH_FILTER, with_genres: "18", "vote_count.gte": "20", sort_by: "popularity.desc" } },
+
+  { type: "movie", id: "danske_film_2020_2026", name: "📅 Danske film 2020–2026", params: { ...DANISH_FILTER, "primary_release_date.gte": "2020-01-01", "primary_release_date.lte": "2026-09-16", "vote_count.gte": "5", sort_by: "primary_release_date.desc" } },
+  { type: "movie", id: "danske_film_2000_2019", name: "📅 Danske film 2000–2019", params: { ...DANISH_FILTER, "primary_release_date.gte": "2000-01-01", "primary_release_date.lte": "2019-12-31", "vote_count.gte": "20", sort_by: "popularity.desc" } },
+  { type: "movie", id: "danske_film_foer_2000", name: "📼 Danske film før 2000", params: { ...DANISH_FILTER, "primary_release_date.lte": "1999-12-31", "vote_count.gte": "20", sort_by: "popularity.desc" } }
 ];
 
 const manifest = {
   id: "dk.danish.nuvio.stremio.katalog",
-  version: "2.0.1",
+  version: "2.1.0",
   name: "Dansk Film – Nuvio",
-  description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, metadata og automatisk opdaterede TMDB-resultater.",
+  description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, kvalitetsfiltre, metadata og automatisk opdaterede TMDB-resultater.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
   resources: ["catalog", "meta"],
   types: ["movie", "series"],
