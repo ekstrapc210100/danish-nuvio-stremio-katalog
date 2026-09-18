@@ -1,7 +1,7 @@
 const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
 
-const PORT = process.env.PORT || 7000;
+const PORT = Number(process.env.PORT) || 7000;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
 if (!TMDB_API_KEY) {
@@ -13,46 +13,165 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
+const today = new Date();
+const TODAY_ISO = [
+  today.getUTCFullYear(),
+  String(today.getUTCMonth() + 1).padStart(2, "0"),
+  String(today.getUTCDate()).padStart(2, "0")
+].join("-");
+
 const DANISH_FILTER = {
   with_origin_country: "DK",
   with_original_language: "da"
 };
 
 const catalogs = [
-  // Hovedkatalog: bredt, men undgår helt ukendte TMDB-poster med næsten ingen stemmer.
-  { type: "movie", id: "danske_film", name: "🇩🇰 Danske film", params: { ...DANISH_FILTER, "vote_count.gte": "10", sort_by: "popularity.desc" } },
-  { type: "series", id: "danske_serier", name: "🇩🇰 Danske serier", params: { ...DANISH_FILTER, "vote_count.gte": "10", sort_by: "popularity.desc" } },
-
-  // Nye film: ingen fremtidige 2027+ titler i en kategori, der hedder 2020–nu.
-  { type: "movie", id: "danske_nye", name: "🔥 Nye danske film", params: { ...DANISH_FILTER, "primary_release_date.gte": "2020-01-01", "primary_release_date.lte": "2026-09-16", "vote_count.gte": "5", sort_by: "popularity.desc" } },
-
-  { type: "movie", id: "danske_populaere", name: "⭐ Populære danske film", params: { ...DANISH_FILTER, "vote_count.gte": "25", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_bedst_bedomte", name: "🏆 Bedst bedømte danske film", params: { ...DANISH_FILTER, "vote_count.gte": "100", sort_by: "vote_average.desc" } },
-
-  // Klassikere: stadig åbne nok til at finde ældre danske film, men med et minimum af TMDB-data.
-  { type: "movie", id: "danske_klassikere", name: "🎬 Danske klassikere", params: { ...DANISH_FILTER, "primary_release_date.lte": "1999-12-31", "vote_count.gte": "20", sort_by: "popularity.desc" } },
-
-  { type: "movie", id: "danske_komedier", name: "😂 Danske komedier", params: { ...DANISH_FILTER, with_genres: "35", "vote_count.gte": "20", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_krimier", name: "🔪 Danske krimier", params: { ...DANISH_FILTER, with_genres: "80", "vote_count.gte": "20", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_dramaer", name: "🎭 Danske dramaer", params: { ...DANISH_FILTER, with_genres: "18", "vote_count.gte": "20", sort_by: "popularity.desc" } },
-
-  { type: "movie", id: "danske_film_2020_2026", name: "📅 Danske film 2020–2026", params: { ...DANISH_FILTER, "primary_release_date.gte": "2020-01-01", "primary_release_date.lte": "2026-09-16", "vote_count.gte": "5", sort_by: "primary_release_date.desc" } },
-  { type: "movie", id: "danske_film_2000_2019", name: "📅 Danske film 2000–2019", params: { ...DANISH_FILTER, "primary_release_date.gte": "2000-01-01", "primary_release_date.lte": "2019-12-31", "vote_count.gte": "20", sort_by: "popularity.desc" } },
-  { type: "movie", id: "danske_film_foer_2000", name: "📼 Danske film før 2000", params: { ...DANISH_FILTER, "primary_release_date.lte": "1999-12-31", "vote_count.gte": "20", sort_by: "popularity.desc" } }
+  {
+    type: "movie",
+    id: "danske_film",
+    name: "🇩🇰 Danske film",
+    params: {
+      ...DANISH_FILTER,
+      "vote_count.gte": "10",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "series",
+    id: "danske_serier",
+    name: "🇩🇰 Danske serier",
+    params: {
+      ...DANISH_FILTER,
+      "vote_count.gte": "10",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_nye",
+    name: "🔥 Nye danske film",
+    params: {
+      ...DANISH_FILTER,
+      "primary_release_date.gte": "2020-01-01",
+      "primary_release_date.lte": TODAY_ISO,
+      "vote_count.gte": "5",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_populaere",
+    name: "⭐ Populære danske film",
+    params: {
+      ...DANISH_FILTER,
+      "vote_count.gte": "25",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_bedst_bedomte",
+    name: "🏆 Bedst bedømte danske film",
+    params: {
+      ...DANISH_FILTER,
+      "vote_count.gte": "100",
+      sort_by: "vote_average.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_klassikere",
+    name: "🎬 Danske klassikere",
+    params: {
+      ...DANISH_FILTER,
+      "primary_release_date.lte": "1999-12-31",
+      "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_komedier",
+    name: "😂 Danske komedier",
+    params: {
+      ...DANISH_FILTER,
+      with_genres: "35",
+      "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_krimier",
+    name: "🔪 Danske krimier",
+    params: {
+      ...DANISH_FILTER,
+      with_genres: "80",
+      "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_dramaer",
+    name: "🎭 Danske dramaer",
+    params: {
+      ...DANISH_FILTER,
+      with_genres: "18",
+      "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_film_2020_2026",
+    name: "📅 Danske film 2020–2026",
+    params: {
+      ...DANISH_FILTER,
+      "primary_release_date.gte": "2020-01-01",
+      "primary_release_date.lte": TODAY_ISO,
+      "vote_count.gte": "5",
+      sort_by: "primary_release_date.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_film_2000_2019",
+    name: "📅 Danske film 2000–2019",
+    params: {
+      ...DANISH_FILTER,
+      "primary_release_date.gte": "2000-01-01",
+      "primary_release_date.lte": "2019-12-31",
+      "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_film_foer_2000",
+    name: "📼 Danske film før 2000",
+    params: {
+      ...DANISH_FILTER,
+      "primary_release_date.lte": "1999-12-31",
+      "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  }
 ];
 
 const manifest = {
   id: "dk.danish.nuvio.stremio.katalog",
-  version: "2.2.1",
+  version: "2.2.2",
   name: "Dansk Film – Nuvio",
-  description: "Danske film og serier med dynamiske kataloger, søgning, forbedret billedhåndtering, kvalitetsfiltre, metadata, konfigurerbare kataloger og automatisk opdaterede TMDB-resultater.",
+  description:
+    "Danske film og serier med dynamiske kataloger, søgning, metadata, kvalitetsfiltre og konfigurerbare kataloger.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
   resources: ["catalog", "meta"],
   types: ["movie", "series"],
-  catalogs: catalogs.map(c => ({
-    type: c.type,
-    id: c.id,
-    name: c.name,
+  catalogs: catalogs.map((catalog) => ({
+    type: catalog.type,
+    id: catalog.id,
+    name: catalog.name,
     extra: [
       { name: "skip", isRequired: false },
       { name: "search", isRequired: false }
@@ -65,30 +184,57 @@ const builder = new addonBuilder(manifest);
 const cache = new Map();
 const CACHE_MS = 15 * 60 * 1000;
 const DETAIL_CACHE_MS = 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
 
 function getCatalog(id) {
-  return catalogs.find(c => c.id === id);
+  return catalogs.find((catalog) => catalog.id === id);
 }
 
-function tmdbParams(obj) {
+function setCache(key, data) {
+  if (cache.size >= MAX_CACHE_ENTRIES && !cache.has(key)) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey) cache.delete(oldestKey);
+  }
+  cache.set(key, { time: Date.now(), data });
+}
+
+function getCached(key, maxAge) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+
+  if (Date.now() - entry.time >= maxAge) {
+    cache.delete(key);
+    return null;
+  }
+
+  return entry.data;
+}
+
+function tmdbParams(params = {}) {
   return new URLSearchParams({
     api_key: TMDB_API_KEY,
     language: "da-DK",
     include_adult: "false",
     include_video: "false",
-    ...obj
+    ...params
   });
 }
 
-async function tmdb(path, params) {
+async function tmdb(path, params = {}) {
   const url = `${TMDB_BASE}${path}?${tmdbParams(params).toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
-  return res.json();
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`TMDB HTTP ${response.status}`);
+  }
+
+  return response.json();
 }
 
 function clean(value) {
-  return value === null || value === undefined || value === "" ? undefined : value;
+  return value === null || value === undefined || value === ""
+    ? undefined
+    : value;
 }
 
 function toMeta(item, type, detailed = false) {
@@ -105,44 +251,80 @@ function toMeta(item, type, detailed = false) {
     posterShape: "poster",
     background: backdropPath
       ? `${BACKDROP_BASE}${backdropPath}`
-      : (posterPath ? `${IMAGE_BASE}${posterPath}` : undefined),
+      : posterPath
+        ? `${IMAGE_BASE}${posterPath}`
+        : undefined,
     description: clean(item.overview),
     imdb_id: clean(item.external_ids?.imdb_id),
     genres: Array.isArray(item.genres)
-      ? item.genres.map(g => g.name)
+      ? item.genres.map((genre) => genre.name).filter(Boolean)
       : undefined,
-    imdbRating: typeof item.vote_average === "number" && item.vote_count > 0
-      ? item.vote_average
-      : undefined
+    imdbRating:
+      typeof item.vote_average === "number" && item.vote_count > 0
+        ? item.vote_average
+        : undefined
   };
 
   if (detailed) {
-    meta.runtime = type === "movie"
-      ? (item.runtime ? item.runtime * 60 : undefined)
-      : (item.episode_run_time?.[0] ? item.episode_run_time[0] * 60 : undefined);
+    meta.runtime =
+      type === "movie"
+        ? item.runtime
+          ? item.runtime * 60
+          : undefined
+        : item.episode_run_time?.[0]
+          ? item.episode_run_time[0] * 60
+          : undefined;
 
-    meta.director = type === "movie"
-      ? item.credits?.crew?.find(x => x.job === "Director")?.name
-      : undefined;
+    meta.director =
+      type === "movie"
+        ? item.credits?.crew?.find((person) => person.job === "Director")?.name
+        : undefined;
 
     meta.cast = item.credits?.cast
       ?.slice(0, 10)
-      .map(x => x.name)
+      .map((person) => person.name)
       .filter(Boolean);
 
     meta.trailers = item.videos?.results
-      ?.filter(v => v.site === "YouTube" && v.type === "Trailer")
+      ?.filter(
+        (video) => video.site === "YouTube" && video.type === "Trailer"
+      )
       .slice(0, 3)
-      .map(v => ({ source: v.key, type: "Trailer" }));
+      .map((video) => ({
+        source: video.key,
+        type: "Trailer"
+      }));
   }
 
   return meta;
 }
 
+function isDanish(item, type) {
+  const originalLanguage = item.original_language;
+
+  if (originalLanguage !== "da") {
+    return false;
+  }
+
+  if (type === "movie") {
+    const countries = (item.production_countries || []).map(
+      (country) => country.iso_3166_1
+    );
+
+    return countries.length === 0 || countries.includes("DK");
+  }
+
+  const countries = item.origin_country || [];
+  return countries.length === 0 || countries.includes("DK");
+}
+
 async function getDetailedMeta(id, type) {
   const key = `detail:${type}:${id}`;
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.time < DETAIL_CACHE_MS) return cached.data;
+  const cached = getCached(key, DETAIL_CACHE_MS);
+
+  if (cached) {
+    return cached;
+  }
 
   const path = type === "movie" ? `/movie/${id}` : `/tv/${id}`;
   const data = await tmdb(path, {
@@ -150,57 +332,65 @@ async function getDetailedMeta(id, type) {
   });
 
   const meta = toMeta(data, type, true);
-  cache.set(key, { time: Date.now(), data: meta });
+  setCache(key, meta);
   return meta;
 }
 
-function isDanish(item, type) {
-  const originalLanguage = item.original_language;
-  const countries = type === "movie"
-    ? (item.production_countries || []).map(x => x.iso_3166_1)
-    : (item.origin_country || []);
+builder.defineCatalogHandler(async (args) => {
+  const catalog = getCatalog(args.id);
 
-  return originalLanguage === "da" && countries.includes("DK");
-}
-
-builder.defineCatalogHandler(async args => {
-  const cfg = getCatalog(args.id);
-  if (!cfg) throw new Error("Unknown catalog");
+  if (!catalog) {
+    throw new Error("Unknown catalog");
+  }
 
   const skip = Math.max(0, Number(args.extra?.skip || 0));
   const page = Math.floor(skip / 20) + 1;
 
   if (args.extra?.search) {
-    const searchPath = cfg.type === "movie" ? "/search/movie" : "/search/tv";
+    const searchPath =
+      catalog.type === "movie" ? "/search/movie" : "/search/tv";
+
     const data = await tmdb(searchPath, {
-      query: args.extra.search,
+      query: String(args.extra.search).trim(),
       page,
       region: "DK"
     });
 
     return {
       metas: (data.results || [])
-        .filter(item => isDanish(item, cfg.type))
+        .filter((item) => isDanish(item, catalog.type))
+        .filter((item) => item.poster_path)
         .slice(0, 20)
-        .map(item => toMeta(item, cfg.type))
+        .map((item) => toMeta(item, catalog.type))
     };
   }
 
-  const key = `${cfg.id}:${page}`;
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.time < CACHE_MS) {
-    return { metas: cached.metas, cacheMaxAge: 900, staleRevalidate: 3600, staleIfError: 86400 };
+  const key = `${catalog.id}:${page}`;
+  const cached = getCached(key, CACHE_MS);
+
+  if (cached) {
+    return {
+      metas: cached,
+      cacheMaxAge: 900,
+      staleRevalidate: 3600,
+      staleIfError: 86400
+    };
   }
 
-  const path = cfg.type === "movie" ? "/discover/movie" : "/discover/tv";
-  const data = await tmdb(path, { ...cfg.params, page });
+  const path =
+    catalog.type === "movie" ? "/discover/movie" : "/discover/tv";
+
+  const data = await tmdb(path, {
+    ...catalog.params,
+    page
+  });
 
   const metas = (data.results || [])
-    .filter(item => item.original_language === "da")
-    .filter(item => item.poster_path)
-    .map(item => toMeta(item, cfg.type));
+    .filter((item) => item.original_language === "da")
+    .filter((item) => item.poster_path)
+    .map((item) => toMeta(item, catalog.type));
 
-  cache.set(key, { time: Date.now(), metas });
+  setCache(key, metas);
 
   return {
     metas,
@@ -210,17 +400,22 @@ builder.defineCatalogHandler(async args => {
   };
 });
 
-builder.defineMetaHandler(async args => {
+builder.defineMetaHandler(async (args) => {
   const match = String(args.id || "").match(/^tmdb:(\d+)$/);
-  if (!match) return { meta: null };
+
+  if (!match) {
+    return { meta: null };
+  }
 
   const id = match[1];
   const type = args.type === "series" ? "series" : "movie";
 
   try {
-    return { meta: await getDetailedMeta(id, type) };
-  } catch (err) {
-    console.error("Metadata error:", err.message);
+    return {
+      meta: await getDetailedMeta(id, type)
+    };
+  } catch (error) {
+    console.error("Metadata error:", error.message);
     return { meta: null };
   }
 });
@@ -230,31 +425,39 @@ const router = getRouter(addonInterface);
 const app = express();
 
 app.disable("x-powered-by");
-app.use(express.json());
+app.use(express.json({ limit: "32kb" }));
 
 const BASE_URL = process.env.PUBLIC_BASE_URL || "";
-const DEFAULT_CATALOG_IDS = catalogs.map(c => c.id);
 
 function publicBase(req) {
   return (BASE_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
 }
 
 function selectedCatalogs(value) {
-  if (!value) return catalogs;
-  const ids = String(value).split(",").filter(Boolean);
-  const allowed = new Set(catalogs.map(c => c.id));
-  const unique = [...new Set(ids)].filter(id => allowed.has(id));
-  return unique.length ? catalogs.filter(c => unique.includes(c.id)) : catalogs;
+  if (!value) {
+    return catalogs;
+  }
+
+  const ids = String(value)
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  const allowed = new Set(catalogs.map((catalog) => catalog.id));
+  const unique = [...new Set(ids)].filter((id) => allowed.has(id));
+
+  return unique.length
+    ? catalogs.filter((catalog) => unique.includes(catalog.id))
+    : catalogs;
 }
 
-function manifestFor(req, catalogList) {
+function manifestFor(catalogList) {
   return {
     ...manifest,
-    version: "2.2.1",
-    catalogs: catalogList.map(c => ({
-      type: c.type,
-      id: c.id,
-      name: c.name,
+    catalogs: catalogList.map((catalog) => ({
+      type: catalog.type,
+      id: catalog.id,
+      name: catalog.name,
       extra: [
         { name: "skip", isRequired: false },
         { name: "search", isRequired: false }
@@ -278,23 +481,27 @@ function decodeConfig(value) {
 const landingPage = (req) => {
   const base = publicBase(req);
   const standardUrl = `${base}/manifest.json`;
-  const catalogJson = JSON.stringify(catalogs.map(c => ({
-    id: c.id, type: c.type, name: c.name
-  }))).replace(/</g, "\\u003c");
+  const catalogJson = JSON.stringify(
+    catalogs.map((catalog) => ({
+      id: catalog.id,
+      type: catalog.type,
+      name: catalog.name
+    }))
+  ).replace(/</g, "\\u003c");
 
   return `<!doctype html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f17">
-<title>Dansk Film – Nuvio</title>
+<meta name="description" content="Danish movies and TV series catalog addon for Nuvio and Stremio.">
+<title>Danish Film – Nuvio</title>
 <style>
 :root{
   color-scheme:dark;
   --bg:#0b0f17;
   --card:#141a24;
-  --card2:#101620;
   --border:#293445;
   --text:#f5f7fb;
   --muted:#9ca8ba;
@@ -413,65 +620,74 @@ h2{font-size:20px;line-height:1.2;margin:0 0 7px}
 <body><main>
 <section class="hero">
   <div class="logo">🇩🇰</div>
-  <h1>Dansk Film – Nuvio</h1>
-  <p>Danske film og serier samlet ét sted.</p>
+  <h1>Danish Film – Nuvio</h1>
+  <p>Danish movies and TV series in one place.</p>
 </section>
 
 <section class="card">
-  <h2>🚀 Hurtig installation</h2>
-  <p class="sub">Brug den komplette pakke med alle kataloger.</p>
-  <button class="primary" id="copyStandard">Kopiér installationslink</button>
+  <h2>🚀 Quick install</h2>
+  <p class="sub">Install the complete addon with all available catalogs.</p>
+  <button class="primary" id="copyStandard">Copy installation link</button>
 
   <div class="url-wrap">
-    <div class="url-label"><span>Installationslink</span><span>Manifest</span></div>
+    <div class="url-label"><span>Installation link</span><span>Manifest</span></div>
     <div class="url">
       <div class="url-icon">↗</div>
       <div class="url-text" id="standardUrl"></div>
-      <button class="copy-mini" id="copyStandardMini">Kopiér</button>
+      <button class="copy-mini" id="copyStandardMini">Copy</button>
     </div>
     <div class="status" id="standardStatus"></div>
   </div>
 
-  <p class="note">Kopiér linket og indsæt det i Nuvio under installation af addon.</p>
+  <p class="note">Copy the manifest URL and paste it into Nuvio or Stremio when installing the addon.</p>
 </section>
 
 <section class="card">
-  <h2>⚙️ Tilpas selv</h2>
-  <p class="sub">Vælg præcis de kataloger, du vil have i Nuvio.</p>
+  <h2>⚙️ Customize catalogs</h2>
+  <p class="sub">Choose exactly which catalogs you want to install.</p>
 
   <div class="actions">
-    <button class="secondary" id="all">Vælg alle</button>
-    <button class="secondary" id="none">Fravælg alle</button>
+    <button class="secondary" id="all">Select all</button>
+    <button class="secondary" id="none">Clear all</button>
   </div>
 
   <div class="grid" id="catalogs"></div>
 
   <div class="url-wrap">
-    <div class="url-label"><span>Dit installationslink</span><span>Dynamisk</span></div>
+    <div class="url-label"><span>Your installation link</span><span>Dynamic</span></div>
     <div class="url">
       <div class="url-icon">↗</div>
       <div class="url-text" id="customUrl"></div>
-      <button class="copy-mini" id="copyCustomMini">Kopiér</button>
+      <button class="copy-mini" id="copyCustomMini">Copy</button>
     </div>
     <div class="status" id="customStatus"></div>
   </div>
 
   <div class="actions">
-    <button class="primary" id="copyCustom" style="flex:1">Kopiér mit installationslink</button>
+    <button class="primary" id="copyCustom" style="flex:1">Copy my installation link</button>
   </div>
 </section>
 
 <section class="card">
-  <h2>Sådan installerer du</h2>
+  <h2>How to install</h2>
   <p class="note">
-    <b>1.</b> Vælg standardlinket eller tilpas katalogerne.<br>
-    <b>2.</b> Tryk på <b>Kopiér installationslink</b>.<br>
-    <b>3.</b> Åbn Nuvio og gå til addons/installation.<br>
-    <b>4.</b> Indsæt manifest-linket og installér.
+    <b>1.</b> Use the standard link or customize your catalogs.<br>
+    <b>2.</b> Press <b>Copy installation link</b>.<br>
+    <b>3.</b> Open Nuvio or Stremio and go to addon installation.<br>
+    <b>4.</b> Paste the manifest URL and install the addon.
   </p>
 </section>
 
-<div class="footer">Dansk Film – Nuvio · Automatisk opdaterede kataloger</div>
+<section class="card">
+  <h2>About this addon</h2>
+  <p class="note">
+    Danish Film – Nuvio is a catalog and metadata addon focused on Danish movies
+    and TV series. It does not provide video streams. Metadata is currently
+    powered by TMDB.
+  </p>
+</section>
+
+<div class="footer">Danish Film – Nuvio · Catalog &amp; metadata addon</div>
 </main>
 
 <script>
@@ -486,6 +702,7 @@ const boxes=[];
 function render(){
   list.innerHTML="";
   boxes.length=0;
+
   catalogs.forEach(c=>{
     const label=document.createElement("label");
     label.className="item";
@@ -503,14 +720,23 @@ function render(){
     list.append(label);
     boxes.push(input);
   });
+
   standardBox.textContent=standard;
   update();
 }
 
 function urlFor(){
   const ids=boxes.filter(x=>x.checked).map(x=>x.dataset.id);
+
+  if(!ids.length){
+    return base+"/manifest.json";
+  }
+
   const encoded=btoa(unescape(encodeURIComponent(ids.join(","))))
-    .replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");
+    .replace(/=+$/,"")
+    .replace(/\+/g,"-")
+    .replace(/\//g,"_");
+
   return base+"/c/"+encoded+"/manifest.json";
 }
 
@@ -520,55 +746,90 @@ function update(){
 
 async function copyText(url,button,status){
   const old=button.textContent;
+
   try{
     await navigator.clipboard.writeText(url);
-    button.textContent="Kopieret ✓";
-    status.textContent="✓ Link kopieret til udklipsholderen";
+    button.textContent="Copied ✓";
+    status.textContent="✓ Link copied to clipboard";
+
     setTimeout(()=>{
       button.textContent=old;
       status.textContent="";
     },1600);
   }catch{
-    prompt("Kopiér dette link:",url);
+    prompt("Copy this link:",url);
   }
 }
 
 document.getElementById("copyStandard").addEventListener("click",()=>{
-  copyText(standard,document.getElementById("copyStandard"),document.getElementById("standardStatus"));
+  copyText(
+    standard,
+    document.getElementById("copyStandard"),
+    document.getElementById("standardStatus")
+  );
 });
+
 document.getElementById("copyStandardMini").addEventListener("click",()=>{
-  copyText(standard,document.getElementById("copyStandardMini"),document.getElementById("standardStatus"));
+  copyText(
+    standard,
+    document.getElementById("copyStandardMini"),
+    document.getElementById("standardStatus")
+  );
 });
+
 document.getElementById("copyCustom").addEventListener("click",()=>{
-  copyText(urlFor(),document.getElementById("copyCustom"),document.getElementById("customStatus"));
+  copyText(
+    urlFor(),
+    document.getElementById("copyCustom"),
+    document.getElementById("customStatus")
+  );
 });
+
 document.getElementById("copyCustomMini").addEventListener("click",()=>{
-  copyText(urlFor(),document.getElementById("copyCustomMini"),document.getElementById("customStatus"));
+  copyText(
+    urlFor(),
+    document.getElementById("copyCustomMini"),
+    document.getElementById("customStatus")
+  );
 });
+
 document.getElementById("all").addEventListener("click",()=>{
-  boxes.forEach(x=>x.checked=true); update();
+  boxes.forEach(x=>x.checked=true);
+  update();
 });
+
 document.getElementById("none").addEventListener("click",()=>{
-  boxes.forEach(x=>x.checked=false); update();
+  boxes.forEach(x=>x.checked=false);
+  update();
 });
+
 render();
 </script>
-</body></html>`;
+</body>
+</html>`;
 };
 
-app.get("/", (req,res) => res.type("html").send(landingPage(req)));
-
-app.get("/manifest.json", (req,res) => {
-  res.json(manifestFor(req, catalogs));
+app.get("/", (req, res) => {
+  res.type("html").send(landingPage(req));
 });
 
-app.get("/c/:config/manifest.json", (req,res) => {
+app.get("/manifest.json", (req, res) => {
+  res.json(manifestFor(catalogs));
+});
+
+app.get("/c/:config/manifest.json", (req, res) => {
   const ids = decodeConfig(req.params.config);
-  res.json(manifestFor(req, selectedCatalogs(ids)));
+  res.json(manifestFor(selectedCatalogs(ids)));
 });
 
 app.use(router);
 
+app.use((error, req, res, next) => {
+  console.error("Unhandled server error:", error);
+  if (res.headersSent) return next(error);
+  res.status(500).json({ error: "Internal server error" });
+});
+
 app.listen(PORT, () => {
-  console.log(`Dansk Film – Nuvio running on port ${PORT}`);
+  console.log(`Danish Film – Nuvio running on port ${PORT}`);
 });
