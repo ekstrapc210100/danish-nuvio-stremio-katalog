@@ -260,12 +260,12 @@ function resolveCatalogName(catalog) {
 }
 
 const manifest = {
-  id: "dk.danish.nuvio.stremio.katalog",
+  id: "dk.danish.nuvio.katalog",
   version: "2.3.0",
   name: "Dansk Film – Nuvio",
   description:
     "Danske film og serier med dynamiske kataloger, søgning, metadata, kvalitetsfiltre og konfigurerbare kataloger.",
-  logo: "https://www.stremio.com/website/stremio-logo-small.png",
+  logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNjODEwMmUiLz48cmVjdCB4PSIyMCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjY0IiBmaWxsPSIjZmZmIi8+PHJlY3QgeT0iMjciIHdpZHRoPSI2NCIgaGVpZ2h0PSIxMCIgZmlsbD0iI2ZmZiIvPjwvc3ZnPgo=",
   resources: [
     { name: "catalog", types: ["movie", "series"] },
     { name: "meta", types: ["movie", "series"], idPrefixes: ["tmdb:"] }
@@ -598,7 +598,7 @@ const landingPage = (req) => {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f17">
-<meta name="description" content="Danish movies and TV series catalog addon for Nuvio and Stremio.">
+<meta name="description" content="Danish movies and TV series catalog addon for Nuvio.">
 <title>Danish Film – Nuvio</title>
 <style>
 :root{
@@ -742,7 +742,7 @@ h2{font-size:20px;line-height:1.2;margin:0 0 7px}
     <div class="status" id="standardStatus"></div>
   </div>
 
-  <p class="note">Copy the manifest URL and paste it into Nuvio or Stremio when installing the addon.</p>
+  <p class="note">Copy the manifest URL and paste it into Nuvio when installing the addon.</p>
 </section>
 
 <section class="card">
@@ -776,7 +776,7 @@ h2{font-size:20px;line-height:1.2;margin:0 0 7px}
   <p class="note">
     <b>1.</b> Use the standard link or customize your catalogs.<br>
     <b>2.</b> Press <b>Copy installation link</b>.<br>
-    <b>3.</b> Open Nuvio or Stremio and go to addon installation.<br>
+    <b>3.</b> Open Nuvio and go to addon installation.<br>
     <b>4.</b> Paste the manifest URL and install the addon.
   </p>
 </section>
