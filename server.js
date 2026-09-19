@@ -734,8 +734,8 @@ function urlFor(){
 
   const encoded=btoa(unescape(encodeURIComponent(ids.join(","))))
     .replace(/=+$/,"")
-    .replace(/\+/g,"-")
-    .replace(/\//g,"_");
+    .replace(/\\+/g,"-")
+    .replace(/\\//g,"_");
 
   return base+"/c/"+encoded+"/manifest.json";
 }
