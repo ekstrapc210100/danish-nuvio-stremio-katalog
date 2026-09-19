@@ -527,6 +527,12 @@ const addonInterface = builder.getInterface();
 const router = getRouter(addonInterface);
 const app = express();
 
+// Render (and most hosts) terminate TLS at a reverse proxy and forward the
+// original scheme via X-Forwarded-Proto. Without trusting the proxy, Express
+// reports req.protocol as "http" even when the real request was https,
+// which made the installer show "http://" links on the live deployment.
+app.set("trust proxy", true);
+
 app.disable("x-powered-by");
 app.use(express.json({ limit: "32kb" }));
 
