@@ -1,6 +1,6 @@
 {
   "name": "danish-nuvio-stremio-katalog",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Catalog and metadata addon for Nuvio and Stremio focused on Danish movies and TV series.",
   "main": "server.js",
   "scripts": {

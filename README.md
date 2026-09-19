@@ -24,20 +24,29 @@ Stremio, focused on Danish movies and TV series.
   Catalog                     Description
   --------------------------- ------------------------------------------
   Danish Movies               Danish movies
-  Danish Series               Danish TV series
-  Danish New Releases         Recent Danish movies
-  Danish Popular              Popular Danish titles
-  Danish Top Rated            Highly rated Danish titles
-  Danish Classics             Danish classic movies
-  Danish Comedies             Danish comedy movies
-  Danish Crime                Danish crime movies
-  Danish Drama                Danish drama movies
-  Danish Movies 2020--2026    Danish movies released from 2020 to 2026
+  Danish Series                Danish TV series
+  Danish New Movies            Recent Danish movies (2020–present)
+  Danish New Series             Recent Danish series (2020–present)
+  Danish Popular Movies        Popular Danish movies
+  Danish Popular Series         Popular Danish series
+  Danish Top Rated Movies      Highly rated Danish movies
+  Danish Top Rated Series       Highly rated Danish series
+  Danish Classic Movies        Danish movies released before 2000
+  Danish Classic Series         Danish series first aired before 2000
+  Danish Comedy Movies         Danish comedy movies
+  Danish Comedy Series          Danish comedy series
+  Danish Crime Movies          Danish crime movies
+  Danish Crime Series           Danish crime series
+  Danish Drama Movies          Danish drama movies
+  Danish Drama Series           Danish drama series
+  Danish Movies 2020--present  Danish movies released from 2020 onward
   Danish Movies 2000--2019    Danish movies released from 2000 to 2019
   Danish Movies before 2000   Danish movies released before 2000
 
 The addon uses TMDB country and language filters to identify Danish
-content.
+content. Date-based catalogs are evaluated on every request, so "new"
+and "present" always reflect the current date — no yearly maintenance
+required.
 
 ## Requirements
 

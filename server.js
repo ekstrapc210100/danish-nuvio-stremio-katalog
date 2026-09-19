@@ -13,17 +13,41 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
-const today = new Date();
-const TODAY_ISO = [
-  today.getUTCFullYear(),
-  String(today.getUTCMonth() + 1).padStart(2, "0"),
-  String(today.getUTCDate()).padStart(2, "0")
-].join("-");
-
 const DANISH_FILTER = {
   with_origin_country: "DK",
   with_original_language: "da"
 };
+
+// Resolved at request time (not at server boot) so long-lived instances
+// never serve a stale "today" once midnight passes.
+function todayIso() {
+  const now = new Date();
+  return [
+    now.getUTCFullYear(),
+    String(now.getUTCMonth() + 1).padStart(2, "0"),
+    String(now.getUTCDate()).padStart(2, "0")
+  ].join("-");
+}
+
+// Marker resolved to the real date by resolveParams() on every request.
+const TODAY = "{TODAY}";
+
+// TMDB uses a different date field for movies vs. TV series.
+function releaseDateParams(type, { gte, lte } = {}) {
+  const field = type === "movie" ? "primary_release_date" : "first_air_date";
+  const out = {};
+  if (gte) out[`${field}.gte`] = gte;
+  if (lte) out[`${field}.lte`] = lte;
+  return out;
+}
+
+function resolveParams(params) {
+  const resolved = {};
+  for (const [key, value] of Object.entries(params)) {
+    resolved[key] = value === TODAY ? todayIso() : value;
+  }
+  return resolved;
+}
 
 const catalogs = [
   {
@@ -52,9 +76,19 @@ const catalogs = [
     name: "🔥 Nye danske film",
     params: {
       ...DANISH_FILTER,
-      "primary_release_date.gte": "2020-01-01",
-      "primary_release_date.lte": TODAY_ISO,
+      ...releaseDateParams("movie", { gte: "2020-01-01", lte: TODAY }),
       "vote_count.gte": "5",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "series",
+    id: "danske_serier_nye",
+    name: "🔥 Nye danske serier",
+    params: {
+      ...DANISH_FILTER,
+      ...releaseDateParams("series", { gte: "2020-01-01", lte: TODAY }),
+      "vote_count.gte": "3",
       sort_by: "popularity.desc"
     }
   },
@@ -69,6 +103,16 @@ const catalogs = [
     }
   },
   {
+    type: "series",
+    id: "danske_serier_populaere",
+    name: "⭐ Populære danske serier",
+    params: {
+      ...DANISH_FILTER,
+      "vote_count.gte": "15",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
     type: "movie",
     id: "danske_bedst_bedomte",
     name: "🏆 Bedst bedømte danske film",
@@ -79,13 +123,34 @@ const catalogs = [
     }
   },
   {
+    type: "series",
+    id: "danske_serier_bedst_bedomte",
+    name: "🏆 Bedst bedømte danske serier",
+    params: {
+      ...DANISH_FILTER,
+      "vote_count.gte": "30",
+      sort_by: "vote_average.desc"
+    }
+  },
+  {
     type: "movie",
     id: "danske_klassikere",
     name: "🎬 Danske klassikere",
     params: {
       ...DANISH_FILTER,
-      "primary_release_date.lte": "1999-12-31",
+      ...releaseDateParams("movie", { lte: "1999-12-31" }),
       "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "series",
+    id: "danske_serier_klassikere",
+    name: "📼 Danske klassiske serier",
+    params: {
+      ...DANISH_FILTER,
+      ...releaseDateParams("series", { lte: "1999-12-31" }),
+      "vote_count.gte": "8",
       sort_by: "popularity.desc"
     }
   },
@@ -101,6 +166,17 @@ const catalogs = [
     }
   },
   {
+    type: "series",
+    id: "danske_serier_komedie",
+    name: "😂 Danske komedieserier",
+    params: {
+      ...DANISH_FILTER,
+      with_genres: "35",
+      "vote_count.gte": "8",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
     type: "movie",
     id: "danske_krimier",
     name: "🔪 Danske krimier",
@@ -108,6 +184,17 @@ const catalogs = [
       ...DANISH_FILTER,
       with_genres: "80",
       "vote_count.gte": "20",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "series",
+    id: "danske_serier_krimi",
+    name: "🔪 Danske krimiserier",
+    params: {
+      ...DANISH_FILTER,
+      with_genres: "80",
+      "vote_count.gte": "8",
       sort_by: "popularity.desc"
     }
   },
@@ -123,13 +210,23 @@ const catalogs = [
     }
   },
   {
-    type: "movie",
-    id: "danske_film_2020_2026",
-    name: "📅 Danske film 2020–2026",
+    type: "series",
+    id: "danske_serier_drama",
+    name: "🎭 Danske dramaserier",
     params: {
       ...DANISH_FILTER,
-      "primary_release_date.gte": "2020-01-01",
-      "primary_release_date.lte": TODAY_ISO,
+      with_genres: "18",
+      "vote_count.gte": "8",
+      sort_by: "popularity.desc"
+    }
+  },
+  {
+    type: "movie",
+    id: "danske_film_2020_2026",
+    name: "📅 Danske film 2020–{YEAR}",
+    params: {
+      ...DANISH_FILTER,
+      ...releaseDateParams("movie", { gte: "2020-01-01", lte: TODAY }),
       "vote_count.gte": "5",
       sort_by: "primary_release_date.desc"
     }
@@ -140,8 +237,7 @@ const catalogs = [
     name: "📅 Danske film 2000–2019",
     params: {
       ...DANISH_FILTER,
-      "primary_release_date.gte": "2000-01-01",
-      "primary_release_date.lte": "2019-12-31",
+      ...releaseDateParams("movie", { gte: "2000-01-01", lte: "2019-12-31" }),
       "vote_count.gte": "20",
       sort_by: "popularity.desc"
     }
@@ -152,26 +248,33 @@ const catalogs = [
     name: "📼 Danske film før 2000",
     params: {
       ...DANISH_FILTER,
-      "primary_release_date.lte": "1999-12-31",
+      ...releaseDateParams("movie", { lte: "1999-12-31" }),
       "vote_count.gte": "20",
       sort_by: "popularity.desc"
     }
   }
 ];
 
+function resolveCatalogName(catalog) {
+  return catalog.name.replace("{YEAR}", String(new Date().getUTCFullYear()));
+}
+
 const manifest = {
   id: "dk.danish.nuvio.stremio.katalog",
-  version: "2.2.2",
+  version: "2.3.0",
   name: "Dansk Film – Nuvio",
   description:
     "Danske film og serier med dynamiske kataloger, søgning, metadata, kvalitetsfiltre og konfigurerbare kataloger.",
   logo: "https://www.stremio.com/website/stremio-logo-small.png",
-  resources: ["catalog", "meta"],
+  resources: [
+    { name: "catalog", types: ["movie", "series"] },
+    { name: "meta", types: ["movie", "series"], idPrefixes: ["tmdb:"] }
+  ],
   types: ["movie", "series"],
   catalogs: catalogs.map((catalog) => ({
     type: catalog.type,
     id: catalog.id,
-    name: catalog.name,
+    name: resolveCatalogName(catalog),
     extra: [
       { name: "skip", isRequired: false },
       { name: "search", isRequired: false }
@@ -381,7 +484,7 @@ builder.defineCatalogHandler(async (args) => {
     catalog.type === "movie" ? "/discover/movie" : "/discover/tv";
 
   const data = await tmdb(path, {
-    ...catalog.params,
+    ...resolveParams(catalog.params),
     page
   });
 
@@ -457,7 +560,7 @@ function manifestFor(catalogList) {
     catalogs: catalogList.map((catalog) => ({
       type: catalog.type,
       id: catalog.id,
-      name: catalog.name,
+      name: resolveCatalogName(catalog),
       extra: [
         { name: "skip", isRequired: false },
         { name: "search", isRequired: false }
@@ -485,7 +588,7 @@ const landingPage = (req) => {
     catalogs.map((catalog) => ({
       id: catalog.id,
       type: catalog.type,
-      name: catalog.name
+      name: resolveCatalogName(catalog)
     }))
   ).replace(/</g, "\\u003c");
 
