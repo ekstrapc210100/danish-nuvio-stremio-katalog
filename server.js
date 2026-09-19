@@ -1,9 +1,31 @@
 const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
+const { Pool } = require("pg");
 const { runDiscovery } = require("./discover");
 
 const PORT = Number(process.env.PORT) || 7000;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
+
+// Optional: when DATABASE_URL is set, catalogs are served from the
+// persistent Postgres database (built by discover.js) instead of hitting
+// TMDB live on every request. Falls back to the live TMDB path automatically
+// whenever the database has too little data for a given catalog/page.
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL, max: 3 })
+  : null;
+
+if (pool) {
+  pool.on("error", (err) => console.error("Postgres pool error:", err.message));
+}
+
+// TMDB genre ids used by the genre-filtered catalogs below, mapped to the
+// Danish genre names discover.js stores (fetched from TMDB's own da-DK
+// genre list, so this must match exactly).
+const GENRE_ID_TO_NAME = {
+  35: "Komedie",
+  80: "Kriminalitet",
+  18: "Drama"
+};
 
 if (!TMDB_API_KEY) {
   console.error("Missing TMDB_API_KEY environment variable.");
@@ -422,6 +444,106 @@ function isDanish(item, type) {
   return countries.length === 0 || countries.includes("DK");
 }
 
+function dbRowToMeta(row, type) {
+  const posterPath = row.poster_path;
+  const backdropPath = row.backdrop_path;
+  const voteAverage = row.vote_average != null ? parseFloat(row.vote_average) : null;
+
+  return {
+    id: `tmdb:${row.tmdb_id}`,
+    type,
+    name: clean(row.title),
+    releaseInfo: row.year ? String(row.year) : undefined,
+    poster: posterPath ? `${IMAGE_BASE}${posterPath}` : undefined,
+    posterShape: "poster",
+    background: backdropPath
+      ? `${BACKDROP_BASE}${backdropPath}`
+      : posterPath
+        ? `${IMAGE_BASE}${posterPath}`
+        : undefined,
+    description: clean(row.overview),
+    genres: Array.isArray(row.genres) ? row.genres : undefined,
+    imdbRating:
+      voteAverage !== null && row.vote_count > 0 ? voteAverage : undefined
+  };
+}
+
+// Translates a catalog's TMDB-style params (already resolved, i.e. {TODAY}
+// substituted) into a parameterized SQL query against the persistent
+// `titles` table. Returns null when the catalog's filter can't be expressed
+// against the local schema, so the caller falls back to live TMDB.
+function buildDbCatalogQuery(catalog, page) {
+  const params = resolveParams(catalog.params);
+  const dateField = catalog.type === "movie" ? "primary_release_date" : "first_air_date";
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  const conditions = ["type = $1", "poster_path IS NOT NULL"];
+  const values = [catalog.type];
+  let idx = 2;
+
+  if (params["vote_count.gte"]) {
+    conditions.push(`vote_count >= $${idx++}`);
+    values.push(Number(params["vote_count.gte"]));
+  }
+
+  if (params.with_genres) {
+    const genreName = GENRE_ID_TO_NAME[params.with_genres];
+    if (!genreName) return null; // unmapped genre id — let TMDB handle it
+    conditions.push(
+      `EXISTS (SELECT 1 FROM jsonb_array_elements_text(genres) g WHERE g = $${idx++})`
+    );
+    values.push(genreName);
+  }
+
+  if (params[`${dateField}.gte`]) {
+    conditions.push(`release_date >= $${idx++}`);
+    values.push(params[`${dateField}.gte`]);
+  }
+
+  if (params[`${dateField}.lte`]) {
+    conditions.push(`release_date <= $${idx++}`);
+    values.push(params[`${dateField}.lte`]);
+  }
+
+  let orderBy = "popularity DESC NULLS LAST";
+  if (params.sort_by === "vote_average.desc") {
+    orderBy = "vote_average DESC NULLS LAST";
+  } else if (params.sort_by === `${dateField}.desc`) {
+    orderBy = "release_date DESC NULLS LAST";
+  }
+
+  const limitIdx = idx++;
+  const offsetIdx = idx++;
+  values.push(limit, offset);
+
+  const sql = `
+    SELECT tmdb_id, title, year, overview, poster_path, backdrop_path,
+           vote_average, vote_count, genres
+    FROM titles
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY ${orderBy}
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
+  `;
+
+  return { sql, values };
+}
+
+async function queryCatalogFromDb(catalog, page) {
+  if (!pool) return null;
+
+  const query = buildDbCatalogQuery(catalog, page);
+  if (!query) return null;
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query(query.sql, query.values);
+    return result.rows.map((row) => dbRowToMeta(row, catalog.type));
+  } finally {
+    client.release();
+  }
+}
+
 async function getDetailedMeta(id, type) {
   const key = `detail:${type}:${id}`;
   const cached = getCached(key, DETAIL_CACHE_MS);
@@ -479,6 +601,26 @@ builder.defineCatalogHandler(async (args) => {
       staleRevalidate: 3600,
       staleIfError: 86400
     };
+  }
+
+  // Prefer the persistent database (built by discover.js) when it has
+  // enough data for this catalog/page. Falls through to live TMDB below on
+  // any error or when the database simply doesn't have enough rows yet
+  // (e.g. right after first deploy, or a deep page not backfilled yet).
+  const MIN_DB_RESULTS = page === 1 ? 5 : 1;
+  try {
+    const dbMetas = await queryCatalogFromDb(catalog, page);
+    if (dbMetas && dbMetas.length >= MIN_DB_RESULTS) {
+      setCache(key, dbMetas);
+      return {
+        metas: dbMetas,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleIfError: 86400
+      };
+    }
+  } catch (error) {
+    console.error("DB catalog query failed, falling back to TMDB:", error.message);
   }
 
   const path =
