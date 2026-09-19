@@ -4,13 +4,15 @@
   "description": "Catalog and metadata addon for Nuvio focused on Danish movies and TV series.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "discover": "node discover.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "express": "^5.1.0",
+    "pg": "^8.16.0",
     "stremio-addon-sdk": "1.6.10"
   }
 }
