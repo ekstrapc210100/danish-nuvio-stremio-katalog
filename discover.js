@@ -69,6 +69,7 @@ function mapItem(item, type, genreMap) {
     backdrop_path: item.backdrop_path || null,
     vote_average: item.vote_average ?? null,
     vote_count: item.vote_count ?? null,
+    popularity: item.popularity ?? null,
     genres,
     origin_countries: item.origin_country || [],
     original_language: item.original_language || null,
@@ -134,22 +135,22 @@ async function bulkUpsert(client, titles) {
          tmdb_id INTEGER, type TEXT, title TEXT, original_title TEXT,
          year INTEGER, release_date TEXT, overview TEXT, poster_path TEXT,
          backdrop_path TEXT, vote_average NUMERIC, vote_count INTEGER,
-         genres JSONB, origin_countries JSONB, original_language TEXT,
-         raw_data JSONB
+         popularity NUMERIC, genres JSONB, origin_countries JSONB,
+         original_language TEXT, raw_data JSONB
        )
      ),
      upserted AS (
        INSERT INTO titles (
          tmdb_id, type, title, original_title, year, release_date, overview,
-         poster_path, backdrop_path, vote_average, vote_count, genres,
-         origin_countries, original_language, danish_verified, source,
+         poster_path, backdrop_path, vote_average, vote_count, popularity,
+         genres, origin_countries, original_language, danish_verified, source,
          last_updated_at, raw_data
        )
        SELECT
          tmdb_id, type, title, original_title, year,
          NULLIF(release_date, '')::date, overview, poster_path, backdrop_path,
-         vote_average, vote_count, genres, origin_countries, original_language,
-         true, 'tmdb_discover', now(), raw_data
+         vote_average, vote_count, popularity, genres, origin_countries,
+         original_language, true, 'tmdb_discover', now(), raw_data
        FROM incoming
        ON CONFLICT (tmdb_id, type) DO UPDATE SET
          title = EXCLUDED.title,
@@ -161,6 +162,7 @@ async function bulkUpsert(client, titles) {
          backdrop_path = EXCLUDED.backdrop_path,
          vote_average = EXCLUDED.vote_average,
          vote_count = EXCLUDED.vote_count,
+         popularity = EXCLUDED.popularity,
          genres = EXCLUDED.genres,
          origin_countries = EXCLUDED.origin_countries,
          original_language = EXCLUDED.original_language,
