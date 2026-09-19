@@ -9,15 +9,21 @@
 //      lives inside the always-available web service instead.
 //
 // Env vars required: TMDB_API_KEY, DATABASE_URL
+//
+// Paging strategy: TMDB discover is sorted newest-first. Every run always
+// re-checks page 1 (to catch brand-new releases immediately), then walks
+// forward through older pages using a cursor persisted in
+// discovery_state(next_page), wrapping back to page 2 once it reaches the
+// end. This way the database gradually backfills the *entire* historical
+// catalog over many runs instead of re-fetching the same newest slice
+// forever.
 
 const { Client } = require("pg");
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
-// How many discover pages to pull per type, per run. TMDB returns 20
-// results/page. Running roughly daily, this keeps well within TMDB's rate
-// limits while gradually building full historical coverage and always
-// re-checking the newest releases (which change most often).
+// How many *additional* (non-page-1) pages to pull per type, per run, on
+// top of always refreshing page 1. TMDB returns 20 results/page.
 const DEFAULT_PAGES_PER_RUN = 6;
 
 // Minimum time between runs, to keep the endpoint safe to expose without a
@@ -45,14 +51,44 @@ async function loadGenreMap(apiKey, mediaType) {
   return map;
 }
 
-async function discoverType(apiKey, type, pagesPerRun) {
+function mapItem(item, type, genreMap) {
+  const releaseDate = type === "movie" ? item.release_date : item.first_air_date;
+  const year = releaseDate ? parseInt(releaseDate.slice(0, 4), 10) : null;
+  const title = type === "movie" ? item.title : item.name;
+  const originalTitle = type === "movie" ? item.original_title : item.original_name;
+  const genres = (item.genre_ids || []).map((id) => genreMap.get(id)).filter(Boolean);
+  return {
+    tmdb_id: item.id,
+    type,
+    title,
+    original_title: originalTitle || null,
+    year,
+    release_date: releaseDate || null,
+    overview: item.overview || null,
+    poster_path: item.poster_path || null,
+    backdrop_path: item.backdrop_path || null,
+    vote_average: item.vote_average ?? null,
+    vote_count: item.vote_count ?? null,
+    genres,
+    origin_countries: item.origin_country || [],
+    original_language: item.original_language || null,
+    raw_data: item
+  };
+}
+
+/**
+ * Fetches page 1 (always, to catch new releases) plus `pagesPerRun` more
+ * pages starting at `startPage` (wrapping back to page 2 if it runs past
+ * the end — page 1 is already covered separately). Returns the mapped
+ * items and where the cursor should start next time.
+ */
+async function discoverType(apiKey, type, startPage, pagesPerRun) {
   const mediaType = type === "movie" ? "movie" : "tv";
   const dateField = type === "movie" ? "primary_release_date" : "first_air_date";
   const genreMap = await loadGenreMap(apiKey, mediaType);
 
-  const items = [];
-  for (let page = 1; page <= pagesPerRun; page++) {
-    const data = await tmdbFetch(apiKey, `/discover/${mediaType}`, {
+  async function fetchPage(page) {
+    return tmdbFetch(apiKey, `/discover/${mediaType}`, {
       with_origin_country: "DK",
       with_original_language: "da",
       sort_by: `${dateField}.desc`,
@@ -60,35 +96,31 @@ async function discoverType(apiKey, type, pagesPerRun) {
       page: String(page),
       language: "da-DK"
     });
-    if (!data.results || data.results.length === 0) break;
-    items.push(...data.results);
-    if (page >= (data.total_pages || 1)) break;
   }
 
-  return items.map((item) => {
-    const releaseDate = type === "movie" ? item.release_date : item.first_air_date;
-    const year = releaseDate ? parseInt(releaseDate.slice(0, 4), 10) : null;
-    const title = type === "movie" ? item.title : item.name;
-    const originalTitle = type === "movie" ? item.original_title : item.original_name;
-    const genres = (item.genre_ids || []).map((id) => genreMap.get(id)).filter(Boolean);
-    return {
-      tmdb_id: item.id,
-      type,
-      title,
-      original_title: originalTitle || null,
-      year,
-      release_date: releaseDate || null,
-      overview: item.overview || null,
-      poster_path: item.poster_path || null,
-      backdrop_path: item.backdrop_path || null,
-      vote_average: item.vote_average ?? null,
-      vote_count: item.vote_count ?? null,
-      genres,
-      origin_countries: item.origin_country || [],
-      original_language: item.original_language || null,
-      raw_data: item
-    };
-  });
+  const items = [];
+
+  // Always refresh page 1 so brand-new releases show up the same day.
+  const first = await fetchPage(1);
+  items.push(...(first.results || []));
+  const totalPages = first.total_pages || 1;
+
+  let cursor = Math.min(Math.max(startPage, 2), Math.max(totalPages, 2));
+  let pagesFetched = 0;
+
+  while (pagesFetched < pagesPerRun && totalPages > 1) {
+    const data = await fetchPage(cursor);
+    items.push(...(data.results || []));
+    pagesFetched++;
+    cursor++;
+    if (cursor > totalPages) cursor = 2; // wrap, skipping page 1 (already covered)
+  }
+
+  return {
+    items: items.map((item) => mapItem(item, type, genreMap)),
+    nextPage: cursor,
+    totalPages
+  };
 }
 
 async function bulkUpsert(client, titles) {
@@ -146,6 +178,28 @@ async function bulkUpsert(client, titles) {
   return { created: Number(row.created), updated: Number(row.updated) };
 }
 
+async function getCursor(client, type) {
+  const res = await client.query(
+    `INSERT INTO discovery_state (type, next_page) VALUES ($1, 2)
+     ON CONFLICT (type) DO NOTHING
+     RETURNING next_page`,
+    [type]
+  );
+  if (res.rows[0]) return res.rows[0].next_page;
+  const existing = await client.query(
+    `SELECT next_page FROM discovery_state WHERE type = $1`,
+    [type]
+  );
+  return existing.rows[0]?.next_page ?? 2;
+}
+
+async function setCursor(client, type, nextPage, totalPages) {
+  await client.query(
+    `UPDATE discovery_state SET next_page = $2, total_pages_seen = $3 WHERE type = $1`,
+    [type, nextPage, totalPages]
+  );
+}
+
 /**
  * Runs one discovery pass and upserts results into Postgres.
  * Skips the work (returns the previous run's summary) if the last run was
@@ -177,12 +231,18 @@ async function runDiscovery({ apiKey, databaseUrl, pagesPerRun = DEFAULT_PAGES_P
     const runId = runResult.rows[0].id;
 
     try {
-      const [movies, series] = await Promise.all([
-        discoverType(apiKey, "movie", pagesPerRun),
-        discoverType(apiKey, "series", pagesPerRun)
-      ]);
-      const all = [...movies, ...series];
+      const movieStart = await getCursor(client, "movie");
+      const seriesStart = await getCursor(client, "series");
 
+      const [movies, series] = await Promise.all([
+        discoverType(apiKey, "movie", movieStart, pagesPerRun),
+        discoverType(apiKey, "series", seriesStart, pagesPerRun)
+      ]);
+
+      await setCursor(client, "movie", movies.nextPage, movies.totalPages);
+      await setCursor(client, "series", series.nextPage, series.totalPages);
+
+      const all = [...movies.items, ...series.items];
       const { created, updated } = await bulkUpsert(client, all);
 
       await client.query(
@@ -196,11 +256,13 @@ async function runDiscovery({ apiKey, databaseUrl, pagesPerRun = DEFAULT_PAGES_P
       return {
         skipped: false,
         runId,
-        moviesSeen: movies.length,
-        seriesSeen: series.length,
+        moviesSeen: movies.items.length,
+        seriesSeen: series.items.length,
         titlesFound: all.length,
         created,
-        updated
+        updated,
+        movieCursor: { next: movies.nextPage, totalPages: movies.totalPages },
+        seriesCursor: { next: series.nextPage, totalPages: series.totalPages }
       };
     } catch (err) {
       await client.query(
