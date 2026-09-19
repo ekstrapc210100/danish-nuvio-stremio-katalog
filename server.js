@@ -1,5 +1,6 @@
 const { addonBuilder, getRouter } = require("stremio-addon-sdk");
 const express = require("express");
+const { runDiscovery } = require("./discover");
 
 const PORT = Number(process.env.PORT) || 7000;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -929,6 +930,30 @@ app.get("/manifest.json", (req, res) => {
 app.get("/c/:config/manifest.json", (req, res) => {
   const ids = decodeConfig(req.params.config);
   res.json(manifestFor(selectedCatalogs(ids)));
+});
+
+// Triggers a discovery pass that pulls fresh pages from TMDB and upserts
+// them into the persistent Postgres database (see discover.js). Safe to
+// expose without a secret: runDiscovery() no-ops (returns the previous
+// run's summary) if it was already run within the last hour, so this can't
+// be abused for anything worse than a few extra harmless TMDB calls. It's
+// meant to be hit once a day by a free scheduled trigger (this project has
+// no paid Render Cron Job, so a GitHub Actions workflow calls this instead).
+app.post("/internal/discover", async (req, res) => {
+  if (!process.env.DATABASE_URL) {
+    return res.status(501).json({ error: "DATABASE_URL not configured" });
+  }
+
+  try {
+    const summary = await runDiscovery({
+      apiKey: TMDB_API_KEY,
+      databaseUrl: process.env.DATABASE_URL
+    });
+    res.json(summary);
+  } catch (error) {
+    console.error("Discovery endpoint error:", error);
+    res.status(500).json({ error: "Discovery failed", message: error.message });
+  }
 });
 
 app.use(router);
